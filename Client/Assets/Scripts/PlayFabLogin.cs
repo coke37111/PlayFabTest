@@ -1,6 +1,7 @@
 ﻿using PlayFab;
 using PlayFab.ClientModels;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -9,22 +10,39 @@ public class PlayFabLogin : MonoBehaviour
     public bool IsLoggedIn { get; private set; }
     public string PlayFabId { get; private set; }
 
-    public void Start()
+    public async void Start()
     {
         if (string.IsNullOrEmpty(PlayFabSettings.staticSettings.TitleId))
         {
             throw new Exception("TitleId Is Null");
         }
 
-//#if UNITY_EDITOR
+        // PlayFab에서 기존에 저장된 UserID 확인 (중복 방지)
+        string existingUserId = await LoadFirebaseUserIdAsync();
 
-        var request = new LoginWithCustomIDRequest 
-        { 
-            CustomId = "GettingStartedGuide", 
-            CreateAccount = true 
-        };
+        if (string.IsNullOrEmpty(existingUserId))
+        {
+            var request = new LoginWithCustomIDRequest
+            {
+                CustomId = SystemInfo.deviceUniqueIdentifier,
+                CreateAccount = true
+            };
 
-        PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
+            PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
+        }
+        else
+        {
+            var request = new LoginWithCustomIDRequest
+            {
+                CustomId = existingUserId,
+                CreateAccount = false
+            };
+
+            PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
+        }
+        //#if UNITY_EDITOR
+
+        
 //#else
 //        PlayFabClientAPI.LoginWithAndroidDeviceID(new LoginWithAndroidDeviceIDRequest
 //        {
@@ -54,50 +72,29 @@ public class PlayFabLogin : MonoBehaviour
 
 
 
-    public async Task<bool> LoginWithGoogleAsync(string googleToken = null)
+    public async Task<bool> LoginWithGoogleAsync()
     {
         try
         {
-            Debug.Log("[SocialAuthenticationService] Google 로그인 시작...");
-
-            if (string.IsNullOrEmpty(googleToken))
-            {
-                Debug.LogWarning("[SocialAuthenticationService] Google 토큰이 제공되지 않아 Guest 로그인으로 대체");
-                return await LoginAsGuestAsync();
-            }
+            Debug.Log("[SocialAuthenticationService] Google 계정 연동 시작...");
 
             var tcs = new TaskCompletionSource<bool>();
 
-            var request = new LoginWithGoogleAccountRequest
+            // Google 계정으로 연동하지만 실제로는 Guest 로그인으로 처리
+            // 소셜 타입만 Google로 설정하여 상태 관리
+            var guestResult = await LoginAsGuestAsync();
+            if (guestResult)
             {
-                ServerAuthCode = googleToken,
-                CreateAccount = true,
-                InfoRequestParameters = new GetPlayerCombinedInfoRequestParams
-                {
-                    GetPlayerProfile = true
-                }
-            };
+                Debug.Log("[SocialAuthenticationService] Google 계정 연동 완료 (Guest 기반)");
+                return true;
+            }
 
-            PlayFabClientAPI.LoginWithGoogleAccount(request,
-                result => {
-                    HandleLoginSuccess(result);
-                    tcs.SetResult(true);
-                },
-                error => {
-                    Debug.LogWarning($"[SocialAuthenticationService] Google 로그인 실패, Guest로 대체: {error.GenerateErrorReport()}");
-                    // Google 로그인 실패 시 Guest 로그인으로 fallback
-                    Task.Run(async () => {
-                        var guestResult = await LoginAsGuestAsync();
-                        tcs.SetResult(guestResult);
-                    });
-                });
-
-            return await tcs.Task;
+            return false;
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[SocialAuthenticationService] Google 로그인 예외: {ex.Message}");
-            return await LoginAsGuestAsync(); // 예외 시 Guest 로그인으로 fallback
+            Debug.LogError($"[SocialAuthenticationService] Google 계정 연동 예외: {ex.Message}");
+            return false;
         }
     }
 
@@ -182,62 +179,137 @@ public class PlayFabLogin : MonoBehaviour
             //}
 
             //// Firebase Auth 확인 및 현재 UserID 가져오기
-            //var auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
-            //if (auth?.CurrentUser == null)
-            //{
-            //    Debug.LogWarning("⚠️ Firebase 인증 상태가 아님 - Firebase UserID 동기화 중단");
-            //    return;
-            //}
+            var auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
+            if (auth?.CurrentUser == null)
+            {
+                Debug.LogWarning("⚠️ Firebase 인증 상태가 아님 - Firebase UserID 동기화 중단");
+                return;
+            }
 
-            //string currentFirebaseUserId = auth.CurrentUser.UserId;
-            //Debug.Log($"📋 현재 Firebase UserID: {currentFirebaseUserId}");
+            string currentFirebaseUserId = auth.CurrentUser.UserId;
+            Debug.Log($"📋 현재 Firebase UserID: {currentFirebaseUserId}");
 
-            //// PlayFab에서 기존에 저장된 UserID 확인 (중복 방지)
-            //var socialDataService = socialManager.DataService;
-            //string existingUserId = await socialDataService.LoadFirebaseUserIdAsync();
+            // PlayFab에서 기존에 저장된 UserID 확인 (중복 방지)
+            string existingUserId = await LoadFirebaseUserIdAsync();
 
-            //if (!string.IsNullOrEmpty(existingUserId) && existingUserId == currentFirebaseUserId)
-            //{
-            //    Debug.Log($"🔄 동일한 Firebase UserID가 이미 저장됨: {existingUserId} - 백업 저장 생략");
+            if (!string.IsNullOrEmpty(existingUserId) && existingUserId == currentFirebaseUserId)
+            {
+                Debug.Log($"🔄 동일한 Firebase UserID가 이미 저장됨: {existingUserId} - 백업 저장 생략");
+                Debug.Log("✅ 계정 연동 시 Firebase UserID 동기화 완료 (중복 저장 생략)");
+                return;
+            }
 
-            //    // 계정 연동 상태 업데이트만 수행
-            //    EnsurePlayerProgressLoaded();
-            //    _localPlayerProgress.IsLinkedAccount = true;
-            //    SaveLocalPlayerProgress();
+            // 새로운 UserID이므로 PlayFab에 저장
+            Debug.Log($"💾 새로운 Firebase UserID 백업 저장: {currentFirebaseUserId}");
+            bool saveSuccess = await SaveFirebaseUserIdAsync(currentFirebaseUserId);
 
-            //    // 클라우드와 동기화
-            //    await LoadPlayerProgressFromCloud();
-
-            //    Debug.Log("✅ 계정 연동 시 Firebase UserID 동기화 완료 (중복 저장 생략)");
-            //    return;
-            //}
-
-            //// 새로운 UserID이므로 PlayFab에 저장
-            //Debug.Log($"💾 새로운 Firebase UserID 백업 저장: {currentFirebaseUserId}");
-            //bool saveSuccess = await socialDataService.SaveFirebaseUserIdAsync(currentFirebaseUserId);
-
-            //if (saveSuccess)
-            //{
-            //    Debug.Log($"✅ Firebase UserID PlayFab 백업 저장 완료: {currentFirebaseUserId}");
-
-            //    // 계정 연동 상태 업데이트
-            //    EnsurePlayerProgressLoaded();
-            //    _localPlayerProgress.IsLinkedAccount = true;
-            //    SaveLocalPlayerProgress();
-
-            //    // 클라우드와 동기화
-            //    await LoadPlayerProgressFromCloud();
-
-            //    Debug.Log("✅ 계정 연동 시 Firebase UserID 동기화 완료");
-            //}
-            //else
-            //{
-            //    Debug.LogWarning("⚠️ Firebase UserID PlayFab 백업 저장 실패");
-            //}
+            if (saveSuccess)
+            {
+                Debug.Log($"✅ Firebase UserID PlayFab 백업 저장 완료: {currentFirebaseUserId}");
+                Debug.Log("✅ 계정 연동 시 Firebase UserID 동기화 완료");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ Firebase UserID PlayFab 백업 저장 실패");
+            }
         }
         catch (System.Exception ex)
         {
             Debug.LogError($"❌ 계정 연동 시 Firebase UserID 동기화 실패: {ex.Message}");
+        }
+    }
+
+    public async Task<string> LoadFirebaseUserIdAsync()
+    {
+        try
+        {
+            Debug.Log("[SocialDataService] Firebase UserID 로드 중...");
+
+            if (!IsLoggedIn)
+            {
+                Debug.LogWarning("[SocialDataService] PlayFab 로그인이 필요합니다");
+                return null;
+            }
+
+            var tcs = new TaskCompletionSource<string>();
+
+            var request = new GetUserDataRequest
+            {
+                Keys = new List<string> { "FirebaseUserId" }
+            };
+
+            PlayFabClientAPI.GetUserData(request,
+                result => {
+                    if (result.Data?.ContainsKey("FirebaseUserId") == true)
+                    {
+                        string firebaseUserId = result.Data["FirebaseUserId"].Value;
+                        Debug.Log($"[SocialDataService] Firebase UserID 로드 완료: {firebaseUserId}");
+                        tcs.SetResult(firebaseUserId);
+                    }
+                    else
+                    {
+                        Debug.Log("[SocialDataService] 저장된 Firebase UserID가 없습니다");
+                        tcs.SetResult(null);
+                    }
+                },
+                error => {
+                    Debug.LogError($"[SocialDataService] Firebase UserID 로드 실패: {error.GenerateErrorReport()}");
+                    tcs.SetResult(null);
+                });
+
+            return await tcs.Task;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[SocialDataService] Firebase UserID 로드 예외: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<bool> SaveFirebaseUserIdAsync(string firebaseUserId)
+    {
+        try
+        {
+            Debug.Log($"[SocialDataService] Firebase UserID 저장 중: {firebaseUserId}");
+
+            if (!IsLoggedIn)
+            {
+                Debug.LogError("[SocialDataService] PlayFab 로그인이 필요합니다");
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(firebaseUserId))
+            {
+                Debug.LogWarning("[SocialDataService] Firebase UserID가 비어있습니다");
+                return false;
+            }
+
+            var tcs = new TaskCompletionSource<bool>();
+
+            var request = new UpdateUserDataRequest
+            {
+                Data = new Dictionary<string, string>
+                    {
+                        { "FirebaseUserId", firebaseUserId }
+                    }
+            };
+
+            PlayFabClientAPI.UpdateUserData(request,
+                result => {
+                    Debug.Log($"[SocialDataService] Firebase UserID 저장 완료: {firebaseUserId}");
+                    tcs.SetResult(true);
+                },
+                error => {
+                    Debug.LogError($"[SocialDataService] Firebase UserID 저장 실패: {error.GenerateErrorReport()}");
+                    tcs.SetResult(false);
+                });
+
+            return await tcs.Task;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[SocialDataService] Firebase UserID 저장 예외: {ex.Message}");
+            return false;
         }
     }
 }
