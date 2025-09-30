@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "702474899579",
+    "project_id": "projectclassic-d91fd",
+    "storage_bucket": "projectclassic-d91fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702474899579:android:668f6053c18a18708c12de",
+        "android_client_info": {
+          "package_name": "com.dopamineplus.mochirollroll"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "702474899579-b44snjt9squffgrfusk5o35dtbbrsf3a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dopamineplus.mochirollroll",
+            "certificate_hash": "6b96b6414b489e0f9d2d5aa4df255e0da27e0f73"
+          }
+        },
+        {
+          "client_id": "702474899579-6g3c4b5cpvt0nssoeaimvn2alchnb1og.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATWhNIDb-kDJdrGLOVDip9CX_ITiYxKpM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "702474899579-6g3c4b5cpvt0nssoeaimvn2alchnb1og.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

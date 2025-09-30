@@ -16,22 +16,30 @@ This is a Unity game project titled "PlayFabTest" - a standalone test project fo
       - `PlayFabLogin.cs` - Main authentication service with Google and Guest login support
     - **PlayFabSDK/** - Complete PlayFab SDK with all API modules (Client, Server, Admin, Authentication, Economy, etc.)
     - **PlayFabEditorExtensions/** - Unity Editor extensions for PlayFab integration and configuration
+    - **Firebase/** - Firebase Unity SDK (App, Auth, Analytics)
+    - **Plugins/** - Platform-specific plugins
+      - **Android/** - Android Gradle templates and configuration
+        - `mainTemplate.gradle` - Firebase dependencies and build configuration
+        - `settingsTemplate.gradle` - Gradle settings
+      - **iOS/** - iOS platform plugins
     - **Scenes/** - Contains Main.unity scene
     - **Settings/** - URP render pipeline settings (separate profiles for mobile and PC)
     - **Editor/** - Editor-only scripts and mobile notifications configuration
     - **TutorialInfo/** - Unity template tutorial files
   - **ProjectSettings/** - Unity project configuration files
   - **Packages/** - Unity package dependencies (managed via manifest.json)
+  - **Keystore/** - Android signing keystore (MochiRollRoll.keystore)
   - **Library/** - Unity-generated files (excluded from git)
 
 ## Key Technologies
 
 - **Unity Version**: 6000.1.5f1
 - **PlayFab SDK**: Complete SDK installed locally in Assets/PlayFabSDK
-- **Firebase SDK**: Planned integration for authentication and data synchronization
+- **Firebase SDK**: Firebase Unity SDK 13.3.0 (App, Auth, Analytics)
 - **Rendering**: Universal Render Pipeline (URP) 17.1.0
 - **Input System**: New Unity Input System 1.14.0
 - **Platform Target**: Mobile-first (Android) with PC/Editor support
+- **Android Package**: com.dopamineplus.mochirollroll
 - **Notable Packages**:
   - Unity Timeline 1.8.7
   - Unity Input System 1.14.0
@@ -87,7 +95,18 @@ The project implements a comprehensive authentication system in `Assets/Scripts/
 - Social authentication (Google) with guest fallback
 - Cross-platform login (CustomID for testing, DeviceID for production)
 
-## Firebase Integration (Planned)
+## Firebase Integration
+
+### Current Setup
+Firebase Unity SDK 13.3.0 is installed with the following modules:
+- **firebase-app-unity**: Core Firebase functionality
+- **firebase-auth-unity**: Authentication services
+- **firebase-analytics**: Analytics and event tracking
+- **firebase-common**: Common Firebase utilities
+
+Firebase dependencies are managed through External Dependency Manager (EDM4U) and configured in:
+- `Assets/Plugins/Android/mainTemplate.gradle` - Android Gradle dependencies
+- Firebase configuration files should be placed in appropriate platform directories
 
 ### Architecture Overview
 The project is designed to use Firebase and PlayFab together with the following architecture:
@@ -102,12 +121,18 @@ The project is designed to use Firebase and PlayFab together with the following 
 Firebase Guest ID → Social Login (Google) → PlayFab Authentication → Store Firebase UserID in PlayFab
 ```
 
-### Key Components (To Be Implemented)
-- Firebase Authentication SDK
-- Firebase UserID storage in PlayFab's PlayerData
-- Social authentication providers (Google Play Games, Apple Sign-In)
-- Account recovery mechanism using Firebase UserID
-- Progress synchronization between Firebase and PlayFab
+### Key Components
+- ✅ Firebase Authentication SDK (installed)
+- ✅ Firebase Analytics SDK (installed)
+- 🔄 Firebase UserID storage in PlayFab's PlayerData (in progress in PlayFabLogin.cs)
+- ⏳ Social authentication providers (Google Play Games, Apple Sign-In) - to be implemented
+- ⏳ Account recovery mechanism using Firebase UserID - to be implemented
+- ⏳ Progress synchronization between Firebase and PlayFab - to be implemented
+
+### Firebase Configuration Files
+Required configuration files (must be added to the project):
+- **Android**: `google-services.json` → place in `Assets/StreamingAssets/` or `Assets/Plugins/Android/`
+- **iOS**: `GoogleService-Info.plist` → place in `Assets/Plugins/iOS/`
 
 ### Benefits of This Architecture
 - **Firebase**: Handles guest sessions and provides Firebase-specific services (Analytics, Remote Config, etc.)
@@ -137,14 +162,30 @@ Firebase Guest ID → Social Login (Google) → PlayFab Authentication → Store
 - Error handling via `PlayFabError.GenerateErrorReport()`
 
 ### Implementing Firebase Integration
-1. Add Firebase Unity SDK via Package Manager or manual installation
-2. Configure `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
-3. Implement Firebase Anonymous Authentication for guest sessions
-4. Store Firebase UserID in PlayFab using `UpdateUserData` API
-5. Retrieve Firebase UserID from PlayFab using `GetUserData` API for account recovery
+1. ✅ Firebase Unity SDK 13.3.0 is already installed
+2. ⏳ Configure `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
+3. ⏳ Implement Firebase Anonymous Authentication for guest sessions
+4. ⏳ Store Firebase UserID in PlayFab using `UpdateUserData` API
+5. ⏳ Retrieve Firebase UserID from PlayFab using `GetUserData` API for account recovery
 
 ### Social Login Integration Strategy
 - Use social provider tokens (Google, Apple) to authenticate with both Firebase and PlayFab
 - Firebase: `FirebaseAuth.SignInWithCredential()`
-- PlayFab: `LoginWithGoogleAccount()` or `LoginWithApple()`
+- PlayFab: `LoginWithGoogleAccount()` or `LoginWithApple()` (already implemented in PlayFabLogin.cs)
 - After successful authentication on both platforms, sync user identifiers between services
+
+### Android Build Configuration
+The project uses custom Gradle templates with Firebase dependencies:
+- **mainTemplate.gradle**: Contains Firebase SDK dependencies (firebase-auth:24.0.1, firebase-analytics:23.0.0, etc.)
+- **settingsTemplate.gradle**: Custom Gradle settings
+- **Keystore**: Located at `C:/Projects/PlayFabTest/Keystore/MochiRollRoll.keystore`
+- **Compile SDK**: 36 (Android 14+)
+- **Target SDK**: As configured in ProjectSettings
+
+### Troubleshooting Build Issues
+If Gradle build fails with network errors (unable to download Firebase dependencies):
+1. Check internet connection and ensure access to dl.google.com and repo.maven.apache.org
+2. Try using a VPN if network is restricted
+3. Configure Gradle to use a different mirror repository if needed
+4. Clean build: Delete `Library/Bee/Android` folder and rebuild
+5. Update Firebase SDK versions in `mainTemplate.gradle` if compatibility issues occur

@@ -16,7 +16,7 @@ public class PlayFabLogin : MonoBehaviour
             throw new Exception("TitleId Is Null");
         }
 
-#if UNITY_EDITOR
+//#if UNITY_EDITOR
 
         var request = new LoginWithCustomIDRequest 
         { 
@@ -25,19 +25,19 @@ public class PlayFabLogin : MonoBehaviour
         };
 
         PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
-#else
-        PlayFabClientAPI.LoginWithAndroidDeviceID(new LoginWithAndroidDeviceIDRequest
-        {
-            AndroidDeviceId = SystemInfo.deviceUniqueIdentifier,
-            CreateAccount = true
-        }, result =>
-        {
-            Debug.Log("Logged in with Android device ID");
-        }, error =>
-        {
-            Debug.LogError("Error logging in with Android device ID: " + error.GenerateErrorReport());
-        });
-#endif
+//#else
+//        PlayFabClientAPI.LoginWithAndroidDeviceID(new LoginWithAndroidDeviceIDRequest
+//        {
+//            AndroidDeviceId = SystemInfo.deviceUniqueIdentifier,
+//            CreateAccount = true
+//        }, result =>
+//        {
+//            Debug.Log("Logged in with Android device ID");
+//        }, error =>
+//        {
+//            Debug.LogError("Error logging in with Android device ID: " + error.GenerateErrorReport());
+//        });
+//#endif
     }
 
     private void OnLoginSuccess(LoginResult result)
